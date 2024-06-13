@@ -57,17 +57,66 @@ const CreateUserPage = () => {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
-    setErrors({});
+    setErrors({});   
+    
 
     try {
+      let newUserId:any = '';      
+    
       const response = await fetch('/api/v1/users', {
         method: 'POST',
         body: JSON.stringify(formData),
       });
-
+      
       if (!response.ok) {
         return setErrors(await response.json());
       }
+      else
+      { 
+      //Fetch recently added userid
+      const jsonData = await response.json();
+      newUserId =  jsonData.id;      
+
+      if(formData.canStream 
+        && newUserId != ''
+        && formData.email != null && formData.email?.indexOf("@streamer.com") > 0)
+        {
+          
+          var viewerName = formData.email.split('@')[0];          
+          var viewerFormData = formData;
+          viewerFormData.canStream = false;
+          viewerFormData.email = viewerName+"@viewer.com";
+
+          const viewerResponse = await fetch('/api/v1/users', {
+            method: 'POST',
+            body: JSON.stringify(viewerFormData),
+          });
+
+          if (!viewerResponse.ok) {
+            toast.error('Something went wrong, while creating viewer automatically, pls try again in edit mode.');
+          }
+          else
+          {
+            //Fetch recently added viewer userid
+            const  viewerData = await viewerResponse.json();
+            let viewerId : string =  viewerData.id;
+
+            //Grand access to viewer to recently created streamer
+            const records = [{ user: { id: viewerId } }]            
+            const accessResponse = await fetch(`/api/v1/streams/streamer/${newUserId}/access`, {
+              method: 'POST',
+              body: JSON.stringify({ records }),
+            });  
+            
+            if (!accessResponse.ok) {
+              toast.error('Something went wrong, while giving access, pls try again int edit mode.');
+            } 
+          }
+
+        }
+
+      }
+
       setFormData({
         firstName: '',
         lastName: '',
