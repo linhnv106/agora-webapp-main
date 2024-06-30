@@ -4,16 +4,25 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { IRoute } from '@/utils/interfaces/system';
-import { IUser } from '@/utils/interfaces/user';
+import { IUser, UpdateUserDto } from '@/utils/interfaces/user';
 import Table from '@/components/common/Table';
 import EditIcon from '@/components/icons/EditIcon';
 import DeleteIcon from '@/components/icons/DeleteIcon';
 import { ColumnDef } from '@tanstack/react-table';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { useAppRouter } from '@/hooks/routes';
-import { UserRole } from '@/utils/enums';
+import { StatusEnum, UserRole } from '@/utils/enums';
+import { ENDPOINT_URL } from '@/constants';
 
 const htmlForDelete = 'delete-user-modal';
+
+interface UpdateUser {
+  fullName: string;
+  status: string;
+  firstName:string;
+  lastName:string;
+  canStream:boolean;
+}
 
 export default function Page() {
   const { getEditUserView } = useAppRouter();
@@ -22,6 +31,14 @@ export default function Page() {
     { title: 'Home', url: '/' },
     { title: 'User Management', url: '' },
   ];
+
+  const [updateData, setFormData] = useState<UpdateUser>({
+    fullName: '',
+    status: '',
+    firstName:'',
+    lastName:'',
+    canStream:false,
+  });
 
   async function fetchData(options: { page: number; limit: number }): Promise<{
     data: IUser[];
@@ -52,6 +69,8 @@ export default function Page() {
     }
   };
 
+  
+
   const columns = React.useMemo<ColumnDef<IUser>[]>(
     () => [
       { accessorKey: 'firstName', header: 'First Name' },
@@ -68,6 +87,59 @@ export default function Page() {
               className="checkbox"
               onClick={() => {
                 return false
+              }}
+            />
+          );
+        },
+      },
+      {
+        header: 'Active/InActive',
+        cell(props) {
+          function onSetStatus(id: string, fullName: string, status : StatusEnum,
+            firstName:string,lastName:string,canStream:UserRole
+          ) {
+
+           let newStatus = StatusEnum.Active;
+
+           if(status == StatusEnum.Active)
+            {
+              newStatus = StatusEnum.Inactive;
+            }
+            else
+            {
+              newStatus = StatusEnum.Active;
+            }
+            const result = confirm('Are you sure you want to change status to ' + newStatus +' ?');
+            if (result) {
+              updateData.firstName = firstName;
+              updateData.lastName = lastName;
+              updateData.fullName = fullName;
+              updateData.status = newStatus;
+              updateData.canStream = false;
+
+              if(canStream == UserRole.Streamer)
+                {
+                  updateData.canStream = true;
+                }
+              const response = fetch('/api/v1/users/'+id+'', {
+                  method: 'PATCH',
+                  body: JSON.stringify(updateData),
+                });   
+                
+                location.reload();
+            } 
+          }
+
+          return (
+            <input
+              type="checkbox"
+              checked={props.row.original.status ==StatusEnum.Active}
+              className="checkbox"
+              onChange={() => {
+                onSetStatus(props.row.original.id,props.row.original.fullName,props.row.original.status,
+                  props.row.original.fullName,props.row.original.fullName,props.row.original.role   
+
+                 );
               }}
             />
           );

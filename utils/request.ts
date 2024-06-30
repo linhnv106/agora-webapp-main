@@ -23,7 +23,7 @@ export async function handleChangeRequest(
       parsed.error.issues.forEach((issue) => {
         errors[issue.path[0]] = issue.message;
       });
-
+      console.log('pramod');
       return res.status(400).json(errors);
     }
   }
