@@ -13,6 +13,10 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import { useAppRouter } from '@/hooks/routes';
 import { StatusEnum, UserRole } from '@/utils/enums';
 import { ENDPOINT_URL } from '@/constants';
+import { Input } from '@/components/common/Input';
+import Email from 'next-auth/providers/email';
+import { emit } from 'process';
+import { constant } from 'lodash';
 
 const htmlForDelete = 'delete-user-modal';
 
@@ -27,6 +31,12 @@ interface UpdateUser {
 export default function Page() {
   const { getEditUserView } = useAppRouter();
   const [deletingID, setDeletingID] = useState<IUser['id'] | null>(null);
+  const [myArray, updateMyArray] = useState([]);
+  
+  const [filteredArray, setFilteredArray] = useState<IUser[]>([]);
+  
+  const [searchValue, searchFilteredArray] = useState<string>();
+
   const routes: IRoute[] = [
     { title: 'Home', url: '/' },
     { title: 'User Management', url: '' },
@@ -40,18 +50,63 @@ export default function Page() {
     canStream:false,
   });
 
-  async function fetchData(options: { page: number; limit: number }): Promise<{
-    data: IUser[];
-    total: number;
-  }> {
-    const response = await fetch(
-      `/api/v1/users?page=${options.page}&limit=${options.limit}`,
-      { method: 'GET' },
-    );
-    const { data, total } = await response.json();
+   async function fetchData(options: { page: number; limit: number }): Promise<{
+     data: IUser[];
+     total: number;
+   }> {
+     
+     
+     let searchEmail = localStorage.getItem("emailSearch") != null ? localStorage.getItem("emailSearch") :"";
+     const user: string = document.querySelector<HTMLInputElement>('input[name="email"]').value;
+     
+     document.querySelector<HTMLInputElement>('input[name="email"]').value = searchEmail;
 
-    return { data, total };
-  }
+
+     let response:any = null;
+     if(searchEmail.length > 0 )
+      {
+        let response = await fetch(
+          `/api/v1/users?page=${options.page}&limit=${options.limit}&search=${searchEmail}`,
+          { method: 'GET' },
+        );
+        const { data, total } = await response.json();
+        return{data,total};
+        
+        
+      }
+      else
+      {
+        let response = await fetch(
+          `/api/v1/users?page=${options.page}&limit=${options.limit}`,
+          { method: 'GET' },
+        );
+        
+        const { data, total } = await response.json();
+        return{data,total};
+     
+      }
+
+      const { data, total } = response;
+        
+      return{data,total};
+  
+     
+   } 
+
+  
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;  
+
+  if(value.length > 0 )
+    {
+     localStorage.setItem("emailSearch",value);      
+    }
+    else
+    {
+      localStorage.setItem("emailSearch","");
+    }
+    location.reload();
+  };
 
   const onDeleteSubmit = async () => {
     if (deletingID) {
@@ -124,8 +179,7 @@ export default function Page() {
               const response = fetch('/api/v1/users/'+id+'', {
                   method: 'PATCH',
                   body: JSON.stringify(updateData),
-                });   
-                
+                }); 
                 location.reload();
             } 
           }
@@ -180,6 +234,15 @@ export default function Page() {
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <Breadcrumb routes={routes} />
+           <div className="flex gap-4">
+           <Input          
+              name="email"
+              label="Search By Email"
+              type="email"
+              onChange={handleInputChange}
+            />
+            </div> 
+
           <Link
             type="button"
             className="btn btn-sm btn-primary"
@@ -188,7 +251,7 @@ export default function Page() {
             Create
           </Link>
         </div>
-        <Table columns={columns} fetchData={fetchData} />
+        <Table  columns={columns} fetchData={fetchData} />
       </div>
       <ConfirmModal
         htmlFor={htmlForDelete}
